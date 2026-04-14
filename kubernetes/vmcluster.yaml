@@ -1,0 +1,105 @@
+# VMCluster CRD 예시
+# VM Operator를 직접 사용할 때 (Helm 없이 CRD만 사용하는 경우)
+# 참고: Helm chart 사용 시에는 helm/values.yaml로 관리
+
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMCluster
+metadata:
+  name: vm-cluster
+  namespace: monitoring
+spec:
+  # 데이터 보존 기간
+  retentionPeriod: "90d"
+
+  # ──────────────────────────────────────────────
+  # vminsert: 쓰기 경로
+  # ──────────────────────────────────────────────
+  vminsert:
+    replicaCount: 2
+    image:
+      repository: victoriametrics/vminsert
+      tag: v1.101.0-cluster
+    extraArgs:
+      replicationFactor: "2"
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: vminsert
+              topologyKey: topology.kubernetes.io/zone
+
+  # ──────────────────────────────────────────────
+  # vmstorage: 데이터 저장
+  # ──────────────────────────────────────────────
+  vmstorage:
+    replicaCount: 2
+    image:
+      repository: victoriametrics/vmstorage
+      tag: v1.101.0-cluster
+    storageDataPath: /storage
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Gi
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        cpu: "2"
+        memory: 4Gi
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: vmstorage
+            topologyKey: topology.kubernetes.io/zone
+
+  # ──────────────────────────────────────────────
+  # vmselect: 읽기 경로
+  # ──────────────────────────────────────────────
+  vmselect:
+    replicaCount: 2
+    image:
+      repository: victoriametrics/vmselect
+      tag: v1.101.0-cluster
+    cacheMountPath: /cache
+    extraArgs:
+      dedup.minScrapeInterval: "30s"
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: gp3
+          resources:
+            requests:
+              storage: 10Gi
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 2Gi
+    affinity:
+      podAntiAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app: vmselect
+            topologyKey: topology.kubernetes.io/zone

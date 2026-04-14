@@ -1,0 +1,139 @@
+# VictoriaMetrics K8s Stack — 운영 HA Helm Values
+# values.yaml을 base로 사용하고 이 파일로 오버라이드합니다:
+# helm upgrade vm-stack vm/victoria-metrics-k8s-stack \
+#   --values helm/values.yaml \
+#   --values helm/values-ha.yaml
+
+victoria-metrics-k8s-stack:
+  vmcluster:
+    spec:
+      retentionPeriod: "90d"
+
+      # vmstorage HA: 2개 + AZ 분산 (필수 Anti-affinity)
+      vmstorage:
+        replicaCount: 2
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp3
+              resources:
+                requests:
+                  storage: 300Gi    # 운영 환경에 맞게 조정
+        resources:
+          requests:
+            cpu: "2"
+            memory: 4Gi
+          limits:
+            cpu: "8"
+            memory: 16Gi
+        affinity:
+          podAntiAffinity:
+            # 필수: 서로 다른 AZ에 배포 (같은 AZ 배포 차단)
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: vmstorage
+                topologyKey: topology.kubernetes.io/zone
+        podDisruptionBudget:
+          maxUnavailable: 1
+
+      # vminsert HA: 2개 + PDB
+      vminsert:
+        replicaCount: 2
+        extraArgs:
+          replicationFactor: "2"
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+          limits:
+            cpu: "4"
+            memory: 4Gi
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchLabels:
+                      app: vminsert
+                  topologyKey: topology.kubernetes.io/zone
+        podDisruptionBudget:
+          maxUnavailable: 1
+
+      # vmselect HA: 2개 + PDB + 중복 제거
+      vmselect:
+        replicaCount: 2
+        extraArgs:
+          dedup.minScrapeInterval: "30s"
+        cacheMountPath: /cache
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp3
+              resources:
+                requests:
+                  storage: 30Gi
+        resources:
+          requests:
+            cpu: "1"
+            memory: 1Gi
+          limits:
+            cpu: "4"
+            memory: 8Gi
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: vmselect
+                topologyKey: topology.kubernetes.io/zone
+        podDisruptionBudget:
+          maxUnavailable: 1
+
+  # vmagent HA: 2개 (샤딩)
+  vmagent:
+    spec:
+      replicaCount: 2
+      shardCount: 2         # 타겟을 2개 vmagent에 분산 (카디널리티 높을 때)
+      scrapeInterval: 30s
+      resources:
+        requests:
+          cpu: 500m
+          memory: 512Mi
+        limits:
+          cpu: "2"
+          memory: 2Gi
+
+  # vmalert HA: 2개
+  vmalert:
+    spec:
+      replicaCount: 2
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+
+  # Alertmanager HA: 3개 (Raft 합의)
+  alertmanager:
+    spec:
+      replicaCount: 3
+
+  grafana:
+    # 운영 환경에서는 adminPassword를 Secret으로 관리
+    adminPassword: ""
+    admin:
+      existingSecret: grafana-admin-secret
+      userKey: username
+      passwordKey: password
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 256Mi
+      limits:
+        cpu: "1"
+        memory: 1Gi

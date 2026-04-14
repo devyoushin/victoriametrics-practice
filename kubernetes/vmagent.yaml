@@ -1,0 +1,107 @@
+# VMAgent CRD 예시
+# Kubernetes 클러스터 메트릭 수집 설정
+
+---
+# VMAgent: 메트릭 수집 에이전트
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAgent
+metadata:
+  name: vmagent
+  namespace: monitoring
+spec:
+  # vminsert로 전송
+  remoteWrite:
+    - url: "http://vminsert-vm-cluster:8480/insert/0/prometheus/api/v1/write"
+
+  selectAllByDefault: true    # 모든 ServiceMonitor/PodMonitor 자동 수집
+  scrapeInterval: 30s
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+---
+# VMServiceMonitor: 애플리케이션 메트릭 수집
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMServiceMonitor
+metadata:
+  name: my-app
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  namespaceSelector:
+    matchNames:
+      - default
+      - production
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      # 불필요한 메트릭 제거
+      metricRelabelings:
+        - sourceLabels: [__name__]
+          regex: "go_.*|promhttp_.*"
+          action: drop
+      # 레이블 추가
+      relabelings:
+        - targetLabel: cluster
+          replacement: my-eks-cluster
+
+---
+# VMPodMonitor: 파드 직접 스크래핑
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMPodMonitor
+metadata:
+  name: my-app-pods
+  namespace: monitoring
+spec:
+  selector:
+    matchLabels:
+      app: my-app
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+
+---
+# VMNodeScrape: 노드 메트릭 수집 (node-exporter)
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMNodeScrape
+metadata:
+  name: node-exporter
+  namespace: monitoring
+spec:
+  path: /metrics
+  port: "9100"
+  interval: 30s
+  relabelings:
+    - sourceLabels: [__meta_kubernetes_node_name]
+      targetLabel: node
+    - targetLabel: cluster
+      replacement: my-eks-cluster
+
+---
+# VMStaticScrape: 외부 서비스 스크래핑 (Kubernetes 외부)
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMStaticScrape
+metadata:
+  name: external-services
+  namespace: monitoring
+spec:
+  targetEndpoints:
+    - targets:
+        - external-db.example.com:9187    # PostgreSQL exporter
+      labels:
+        job: external-db
+        env: production
+  endpoints:
+    - port: "9187"
+      path: /metrics
+      interval: 60s

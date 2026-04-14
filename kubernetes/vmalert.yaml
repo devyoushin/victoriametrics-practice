@@ -1,0 +1,166 @@
+# VMAlert + VMRule CRD 예시
+
+---
+# VMAlert: 알림 규칙 평가 엔진
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMAlert
+metadata:
+  name: vmalert
+  namespace: monitoring
+spec:
+  # vmselect에서 데이터 조회
+  datasource:
+    url: "http://vmselect-vm-cluster:8481/select/0/prometheus/"
+
+  # recording rule 결과를 vminsert로 재기록
+  remoteWrite:
+    url: "http://vminsert-vm-cluster:8480/insert/0/prometheus/api/v1/write"
+
+  # Alertmanager로 알림 전송
+  notifier:
+    url: "http://vmalertmanager-vm-cluster:9093/"
+
+  evaluationInterval: 1m
+
+  selectAllByDefault: true    # 모든 VMRule 자동 로드
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+---
+# VMRule: Recording + Alerting Rules 통합 관리
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  name: application-rules
+  namespace: monitoring
+spec:
+  groups:
+    # ─────────────────────────────────────────────
+    # Recording Rules (미리 계산)
+    # ─────────────────────────────────────────────
+    - name: http.recording
+      interval: 1m
+      rules:
+        - record: job:http_requests_total:rate5m
+          expr: |
+            sum by (job) (rate(http_requests_total[5m]))
+
+        - record: job:http_request_errors:rate5m
+          expr: |
+            sum by (job) (
+              rate(http_requests_total{status=~"5.."}[5m])
+            )
+            /
+            sum by (job) (
+              rate(http_requests_total[5m])
+            )
+
+        - record: job:http_request_duration_seconds:p99
+          expr: |
+            histogram_quantile(0.99,
+              sum by (job, le) (
+                rate(http_request_duration_seconds_bucket[5m])
+              )
+            )
+
+    # ─────────────────────────────────────────────
+    # Alerting Rules
+    # ─────────────────────────────────────────────
+    - name: service.alerts
+      rules:
+        - alert: ServiceDown
+          expr: up == 0
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+          annotations:
+            summary: "서비스 {{ $labels.job }} 응답 없음"
+            description: |
+              {{ $labels.job }}/{{ $labels.instance }} 가 2분 이상 응답하지 않습니다.
+
+        - alert: HighErrorRate
+          expr: |
+            job:http_request_errors:rate5m > 0.05
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.job }} 에러율 {{ $value | humanizePercentage }} 초과"
+
+        - alert: HighLatency
+          expr: |
+            job:http_request_duration_seconds:p99 > 1.0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.job }} P99 레이턴시 {{ $value | humanizeDuration }} 초과"
+
+    - name: kubernetes.alerts
+      rules:
+        - alert: PodCrashLooping
+          expr: |
+            rate(kube_pod_container_status_restarts_total[15m]) * 60 * 15 > 3
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "파드 {{ $labels.namespace }}/{{ $labels.pod }} 재시작 반복"
+            description: "15분 내 {{ $value | printf \"%.0f\" }}번 재시작되었습니다."
+
+        - alert: PersistentVolumeAlmostFull
+          expr: |
+            (
+              kubelet_volume_stats_used_bytes
+              /
+              kubelet_volume_stats_capacity_bytes
+            ) > 0.85
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "PVC {{ $labels.namespace }}/{{ $labels.persistentvolumeclaim }} 용량 85% 초과"
+
+    - name: victoriametrics.alerts
+      rules:
+        - alert: VMStorageDiskSpaceLow
+          expr: |
+            vm_available_disk_space_bytes
+              /
+            (vm_data_size_bytes{type="storage"} + vm_available_disk_space_bytes)
+            < 0.2
+          for: 5m
+          labels:
+            severity: warning
+            component: vmstorage
+          annotations:
+            summary: "vmstorage 디스크 여유 공간 20% 미만"
+
+        - alert: VMInsertHighErrorRate
+          expr: |
+            rate(vm_vminsert_api_requests_total{status=~"5.."}[5m])
+              /
+            rate(vm_vminsert_api_requests_total[5m])
+            > 0.01
+          for: 5m
+          labels:
+            severity: critical
+            component: vminsert
+          annotations:
+            summary: "vminsert 5xx 에러율 1% 초과"
+
+        - alert: VMAgentRemoteWriteBehind
+          expr: vm_remotewrite_pending_data_bytes > 1073741824
+          for: 15m
+          labels:
+            severity: warning
+            component: vmagent
+          annotations:
+            summary: "vmagent WAL 미전송 데이터 1GB 초과"

@@ -1,0 +1,166 @@
+# VictoriaMetrics K8s Stack — 개발/테스트용 Helm Values
+# 참고: https://github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-k8s-stack
+
+victoria-metrics-k8s-stack:
+  # ──────────────────────────────────────────────
+  # VM Operator
+  # ──────────────────────────────────────────────
+  victoria-metrics-operator:
+    enabled: true
+
+  # ──────────────────────────────────────────────
+  # VMCluster (vminsert + vmstorage + vmselect)
+  # ──────────────────────────────────────────────
+  vmcluster:
+    enabled: true
+    spec:
+      # 데이터 보존 기간 (90일)
+      retentionPeriod: "90d"
+
+      # vmstorage: 실제 데이터 저장
+      vmstorage:
+        replicaCount: 2
+        storageDataPath: /storage
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp3    # EKS에 gp3 StorageClass 필요 (storage-guide.md 참고)
+              accessModes:
+                - ReadWriteOnce
+              resources:
+                requests:
+                  storage: 100Gi
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: "2"
+            memory: 4Gi
+        # AZ 분산 배포
+        affinity:
+          podAntiAffinity:
+            requiredDuringSchedulingIgnoredDuringExecution:
+              - labelSelector:
+                  matchLabels:
+                    app: vmstorage
+                topologyKey: topology.kubernetes.io/zone
+
+      # vminsert: 쓰기 경로
+      vminsert:
+        replicaCount: 2
+        extraArgs:
+          replicationFactor: "2"    # vmstorage 2개에 복제
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 1Gi
+
+      # vmselect: 읽기 경로
+      vmselect:
+        replicaCount: 2
+        cacheMountPath: /cache
+        extraArgs:
+          dedup.minScrapeInterval: "30s"    # scrapeInterval과 동일하게
+        storage:
+          volumeClaimTemplate:
+            spec:
+              storageClassName: gp3
+              resources:
+                requests:
+                  storage: 10Gi
+        resources:
+          requests:
+            cpu: 200m
+            memory: 256Mi
+          limits:
+            cpu: "1"
+            memory: 2Gi
+
+  # ──────────────────────────────────────────────
+  # vmagent: 메트릭 수집 에이전트
+  # ──────────────────────────────────────────────
+  vmagent:
+    enabled: true
+    spec:
+      selectAllByDefault: true     # 모든 ServiceMonitor/PodMonitor 자동 수집
+      scrapeInterval: 30s
+      replicaCount: 1
+
+      resources:
+        requests:
+          cpu: 200m
+          memory: 256Mi
+        limits:
+          cpu: "1"
+          memory: 1Gi
+
+  # ──────────────────────────────────────────────
+  # vmalert: 알림 규칙 평가
+  # ──────────────────────────────────────────────
+  vmalert:
+    enabled: true
+    spec:
+      evaluationInterval: 1m
+      resources:
+        requests:
+          cpu: 100m
+          memory: 128Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+  # ──────────────────────────────────────────────
+  # Alertmanager
+  # ──────────────────────────────────────────────
+  alertmanager:
+    enabled: true
+    spec:
+      replicaCount: 1    # 개발환경: 1개, 운영환경: 3개
+
+  # ──────────────────────────────────────────────
+  # Grafana
+  # ──────────────────────────────────────────────
+  grafana:
+    enabled: true
+    adminPassword: admin    # 운영 환경에서는 Secret으로 관리
+
+    datasources:
+      datasources.yaml:
+        apiVersion: 1
+        datasources:
+          - name: VictoriaMetrics
+            type: prometheus
+            url: http://vmselect-vm-stack-victoria-metrics-k8s-stack:8481/select/0/prometheus/
+            access: proxy
+            isDefault: true
+            jsonData:
+              timeInterval: 30s
+              queryTimeout: "60"
+              httpMethod: POST
+
+    # 공식 VictoriaMetrics 대시보드 자동 임포트
+    dashboardProviders:
+      dashboardproviders.yaml:
+        apiVersion: 1
+        providers:
+          - name: default
+            orgId: 1
+            folder: VictoriaMetrics
+            type: file
+            options:
+              path: /var/lib/grafana/dashboards/default
+
+  # ──────────────────────────────────────────────
+  # 기본 제공 ServiceMonitor
+  # ──────────────────────────────────────────────
+  # kube-state-metrics
+  kube-state-metrics:
+    enabled: true
+
+  # node-exporter
+  prometheus-node-exporter:
+    enabled: true

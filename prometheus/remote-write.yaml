@@ -1,0 +1,52 @@
+# Prometheus → VictoriaMetrics remote_write 설정 예시
+# 기존 Prometheus를 사용하고 VictoriaMetrics로 데이터를 전송할 때 사용합니다.
+# vmagent를 사용하는 경우 이 설정은 불필요합니다.
+
+# prometheus.yml (또는 Prometheus Helm values의 serverFiles 섹션에 추가)
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+remote_write:
+  # VictoriaMetrics Cluster vminsert로 전송
+  - url: "http://vminsert-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+
+    # 전송 큐 설정
+    queue_config:
+      capacity: 100000
+      max_samples_per_send: 10000
+      batch_send_deadline: 5s
+      min_shards: 2
+      max_shards: 50
+      min_backoff: 30ms
+      max_backoff: 5s
+
+    # 재시도 설정
+    remote_timeout: 30s
+
+    # 메타데이터 전송 비활성화 (VictoriaMetrics는 불필요)
+    send_exemplars: false
+
+    # 특정 메트릭만 전송 (선택사항)
+    # write_relabel_configs:
+    #   - source_labels: [__name__]
+    #     regex: "http_.*|up|kube_.*"
+    #     action: keep
+
+---
+# Prometheus Operator (kube-prometheus-stack) 사용 시
+# PrometheusSpec에 추가
+# helm/prometheus-values.yaml
+
+prometheus:
+  prometheusSpec:
+    remoteWrite:
+      - url: "http://vminsert-vm-stack-victoria-metrics-k8s-stack.monitoring.svc.cluster.local:8480/insert/0/prometheus/api/v1/write"
+        queueConfig:
+          capacity: 100000
+          maxSamplesPerSend: 10000
+          maxShards: 50
+
+    # Prometheus 자체 저장소 보존 기간 단축 (VM에 위임)
+    retention: 2h
+    retentionSize: "5GB"
