@@ -38,7 +38,7 @@ vmagent
 ## 1. vmagent Helm values 설정
 
 ```yaml
-# helm/values.yaml
+# ../ops/config/helm/values.yaml
 victoria-metrics-k8s-stack:
   vmagent:
     enabled: true
@@ -85,7 +85,7 @@ VM Operator는 Prometheus Operator의 ServiceMonitor와 호환되는 `VMServiceM
 ### 기본 ServiceMonitor 예시
 
 ```yaml
-# kubernetes/vmagent.yaml (ServiceMonitor 섹션)
+# ../ops/config/kubernetes/vmagent.yaml (ServiceMonitor 섹션)
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceMonitor
 metadata:
@@ -153,7 +153,7 @@ spec:
 기존 Prometheus `scrape_configs`를 그대로 사용할 수 있습니다:
 
 ```yaml
-# helm/values.yaml
+# ../ops/config/helm/values.yaml
 victoria-metrics-k8s-stack:
   vmagent:
     spec:

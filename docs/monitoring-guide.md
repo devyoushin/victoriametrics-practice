@@ -27,7 +27,7 @@ VM Operator를 사용하는 경우 `VMServiceMonitor`로 자동 수집됩니다.
 수동으로 추가해야 하는 경우:
 
 ```yaml
-# kubernetes/vm-self-monitoring.yaml
+# ../ops/config/kubernetes/vm-self-monitoring.yaml
 ---
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMServiceMonitor

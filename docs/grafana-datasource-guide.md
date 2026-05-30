@@ -59,7 +59,7 @@ Save & Test 클릭 → "Data source is working" 확인
 ### Grafana Provisioning (코드로 관리)
 
 ```yaml
-# helm/values.yaml (Grafana datasource 자동 생성)
+# ../ops/config/helm/values.yaml (Grafana datasource 자동 생성)
 grafana:
   datasources:
     datasources.yaml:
@@ -214,7 +214,7 @@ grafana:
 ### vmselect 캐시 활성화
 
 ```yaml
-# helm/values.yaml
+# ../ops/config/helm/values.yaml
 vmcluster:
   spec:
     vmselect:

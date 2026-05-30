@@ -61,7 +61,7 @@ eksctl create iamserviceaccount \
 EKS 기본 StorageClass는 `gp2`입니다. 성능이 좋은 `gp3`를 사용합니다:
 
 ```yaml
-# kubernetes/storageclass-gp3.yaml
+# ../ops/config/kubernetes/storageclass-gp3.yaml
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -79,7 +79,7 @@ parameters:
 ```
 
 ```bash
-kubectl apply -f kubernetes/storageclass-gp3.yaml
+kubectl apply -f ../ops/config/kubernetes/storageclass-gp3.yaml
 
 # 기본 StorageClass 확인
 kubectl get storageclass
@@ -90,7 +90,7 @@ kubectl get storageclass
 ## 3. vmstorage PVC 설정 (Helm values)
 
 ```yaml
-# helm/values.yaml
+# ../ops/config/helm/values.yaml
 victoria-metrics-k8s-stack:
   vmcluster:
     spec:
@@ -216,7 +216,7 @@ aws s3api put-public-access-block \
 ### CronJob으로 자동 백업
 
 ```yaml
-# kubernetes/vmbackup-cronjob.yaml
+# ../ops/config/kubernetes/vmbackup-cronjob.yaml
 apiVersion: batch/v1
 kind: CronJob
 metadata:

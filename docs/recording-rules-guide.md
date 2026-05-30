@@ -28,7 +28,7 @@ Grafana (Recording Rule 결과 조회)
 VM Operator를 사용하는 경우 `VMRule` CRD로 규칙을 관리합니다:
 
 ```yaml
-# kubernetes/vmalert.yaml
+# ../ops/config/kubernetes/vmalert.yaml
 apiVersion: operator.victoriametrics.com/v1beta1
 kind: VMRule
 metadata:

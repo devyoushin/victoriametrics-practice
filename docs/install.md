@@ -48,10 +48,10 @@ helm search repo vm/victoria-metrics-k8s-stack --versions | head -10
 # 기본 values 확인
 helm show values vm/victoria-metrics-k8s-stack > default-values.yaml
 
-cp helm/values.yaml my-values.yaml
+cp ../ops/config/helm/values.yaml my-values.yaml
 ```
 
-`helm/values.yaml` 핵심 설정 구조:
+`../ops/config/helm/values.yaml` 핵심 설정 구조:
 
 ```yaml
 # VictoriaMetrics Cluster 활성화

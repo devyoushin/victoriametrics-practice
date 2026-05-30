@@ -29,7 +29,7 @@ vmagent-0 (primary)           vmagent-1 (standby)
 ### Replication Factor
 
 ```yaml
-# helm/values-ha.yaml
+# ../ops/config/helm/values-ha.yaml
 victoria-metrics-k8s-stack:
   vmcluster:
     spec:
@@ -188,7 +188,7 @@ alertmanager:
 ## 6. 전체 HA values 파일
 
 ```yaml
-# helm/values-ha.yaml
+# ../ops/config/helm/values-ha.yaml
 victoria-metrics-k8s-stack:
   vmcluster:
     spec:
