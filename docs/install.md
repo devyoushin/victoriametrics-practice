@@ -256,3 +256,24 @@ kubectl get crds | grep victoriametrics | awk '{print $1}' | xargs kubectl delet
 | vminsert `CrashLoopBackOff` | vmstorage 미준비 | vmstorage 파드 먼저 Running 확인 |
 | Operator `Permission denied` | RBAC 설정 오류 | `kubectl logs -n monitoring -l app=vm-operator` 확인 |
 | StorageClass `gp3` 없음 | EKS 기본 StorageClass가 `gp2` | `gp2` 로 변경하거나 gp3 StorageClass 생성 |
+
+
+---
+
+## systemd 설치
+
+Kubernetes 없이 단일 VM이나 베어메탈에서 돌릴 때는 바이너리를 내려받아 systemd로 관리합니다.
+
+1. 바이너리 또는 패키지를 설치합니다.
+2. 설정 파일을 /etc/<component>/ 아래에 둡니다.
+3. `systemctl enable --now <service>`로 등록합니다.
+4. `journalctl -u <service> -f`로 로그를 확인합니다.
+
+## Docker Compose 설치
+
+로컬 개발이나 빠른 검증은 Docker Compose가 가장 간단합니다.
+
+1. `compose.yaml`을 만들고 이미지, 포트, 볼륨을 정의합니다.
+2. `docker compose up -d`로 올립니다.
+3. `docker compose logs -f`와 `docker compose ps`로 상태를 확인합니다.
+4. 개발용은 같은 설정을 유지하되, 운영용은 Helm 또는 systemd를 사용합니다.
