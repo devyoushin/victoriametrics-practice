@@ -44,7 +44,7 @@ victoriametrics-practice/
 
 | 문서 | 주제 |
 |------|------|
-| `docs/install.md` | VictoriaMetrics 설치 |
+| `docs/install/install.md` | VictoriaMetrics 설치 |
 | `docs/architecture-guide.md` | 아키텍처 (단일/클러스터) |
 | `docs/vmagent-guide.md` | vmagent 스크레이핑 설정 |
 | `docs/recording-rules-guide.md` | Recording Rule 최적화 |

@@ -4,7 +4,7 @@ EKS + VictoriaMetrics Cluster 기준으로 메트릭 저장소, vmagent, vminser
 
 ## 빠른 시작
 
-- 처음 볼 문서: `docs/install.md`
+- 처음 볼 문서: `docs/install/install.md`
 - 설치 방식: Helm / systemd / Docker Compose
 - 전체 흐름: 설치 -> 아키텍처/스토리지 -> vmagent/remote write -> Grafana -> 규칙/알림 -> 운영
 - AI 작업 지침: `CLAUDE.md`
@@ -30,7 +30,7 @@ victoriametrics-practice/
 
 | 단계 | 문서 |
 |------|------|
-| 설치 | `docs/install.md` |
+| 설치 | `docs/install/install.md` |
 | 핵심 개념 | `docs/architecture-guide.md`, `docs/storage-guide.md` |
 | 데이터 흐름 | `docs/vmagent-guide.md`, `docs/grafana-datasource-guide.md` |
 | 규칙/알림 | `docs/recording-rules-guide.md`, `docs/alerting-guide.md` |

@@ -9,9 +9,11 @@
 | Helm | `install-helm.md` | VictoriaMetrics Cluster / k8s-stack 설치 |
 | systemd | `install-systemd.md` | RPM 또는 tarball로 설치 후 `vmagent`, `vmalert`, `victoria-metrics` 관리 |
 | Docker Compose | `install-docker-compose.md` | 로컬 단일 노드 검증용 |
+| Upgrade | `upgrade/` | Helm, systemd, Docker Compose 업그레이드 |
 
 ## 읽는 순서
 
 1. `install-helm.md`
 2. `install-systemd.md`
 3. `install-docker-compose.md`
+4. `upgrade/`
